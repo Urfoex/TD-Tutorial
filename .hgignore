@@ -1,0 +1,11 @@
+# Ignoriere ein paar Dateien, die hier in den Ordnern umher schwirren.
+# Diese müssen nicht von mercurial beachtet werden.
+syntax:glob
+build
+build*
+*.swp
+*.lock
+.clang_complete
+.syntastic_cpp_config
+compile_commands.json
+*~
