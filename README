@@ -1,0 +1,20 @@
+Hallo Welt!
+
+Dies ist ein Versuch ein Tutorial zu einem Tower Defense Spiel in C++ mit SDL2 zu erstellen.
+Jeder COMMIT hat dabei etwas zu bedeuten.
+'hg update -r1' entspricht dem ersten COMMIT.
+Dort sollte man mit dem Tutorial anfangen.
+Ist man fertig, geht es mit 'hg update -r2' zur nächsten Sektion voran.
+Mit Mit 'hg diff -r1' sieht man die gemachten Unterschiede zur letzten Version.
+Noch einfacher geht das Ansehen der Commits hier auf Bitbucket.
+Über https://bitbucket.org/Urfoex/td-tutorial/commits kommt man an die einzelnen Commits.
+Man sieht dort schön die Änderungen und kann so genau die Erstellung des Spiels beobachten.
+
+Es ist ein Experiment.
+Vielleicht geht es schief.
+Vielleicht funktioniert es wunderbar.
+Mal schauen.
+
+Anregungen und Kritiken sind Willkommen!
+
+Viel Spaß!
