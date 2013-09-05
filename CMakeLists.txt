@@ -57,3 +57,12 @@ ADD_EXECUTABLE(TD_Tutorial ${SOURCE_FILES})
 # Und zu guter letzt müssen noch die nötigen Bibliotheken zum Projekt gelinkt
 # werden.
 TARGET_LINK_LIBRARIES(TD_Tutorial ${SDL2_LIBRARIES})
+
+# Wir haben Bilder.
+# Die Bilder liegen in einem extra Ordner.
+# Wenn wir einen Build machen, wäre es doch schön, wenn die Bilder auch an die
+# passende Stelle kopiert werden. Dann können wir im Build-Ordner unser
+# Spielchen testen.
+# Der Unterordner hat seine eigene CMakeLists.txt
+# Also führen wir unseren Unterordner hier mit auf.
+ADD_SUBDIRECTORY(images)

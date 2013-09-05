@@ -1,4 +1,5 @@
-/* Starten wir mit dem einfachsten.
+/* 
+ * Starten wir mit dem einfachsten.
  * 
  * Wir brauchen die Ausgabe auf die Konsole und SDL2.
  * Also includen wir diese erstmal hier.
@@ -55,6 +56,21 @@ int main(int argc, char **argv){
 	SDL_Window *window = nullptr;
 	SDL_Event event;
 
+
+	/*
+	 * Wir brauchen ein Bild. Das nutzen wir um damit den Web abzulaufen, den
+	 * die Gegner gehen sollen.
+	 *
+	 * Beim Laden eines Bildes erhalten wir zunächst ein Surface. Das wandeln
+	 * wir anschließend in eine Texture. Diese lässt sich leicht auf unseren
+	 * renderer zeichnen.
+	 * Außerdem brauchen wir ein Rechteck. Dort packen wir dann x,y,w,h unseres
+	 * Bildes rein.
+	 * */
+	SDL_Surface *surface = nullptr;
+	SDL_Texture *texture = nullptr;
+	SDL_Rect rect{0,0,0,0};
+
 	// "Versuchen" wir doch einfach mal. Und falls ein Fehler/ eine Ausnahme
 	// auftreten sollte, wird sie weiter unten gefangen.
 	try{
@@ -108,6 +124,34 @@ int main(int argc, char **argv){
 		// renderer Variable sollte nun auf einen Renderer zeigen.
 		SDL_ANNAHME(renderer != nullptr);
 
+
+		/*
+		 * Laden wir also das Bild.
+		 * */
+		surface = SDL_LoadBMP("images/enemy.bmp");
+
+		// Hoffentlich konnte das Bild geladen werden ...
+		SDL_ANNAHME(surface != nullptr);
+
+		// Aus dem surface, der "Fläche", die wir haben, erstellen wir die
+		// Texture. Und wieder ein Check, dass dies auch geklappt hat.
+		texture = SDL_CreateTextureFromSurface(renderer, surface);
+		SDL_ANNAHME(texture != nullptr);
+
+		/*
+		 * Das Bild beginnt bei 0,0 und ist w,h Pixel groß. Die Werte finden wir
+		 * in surface.
+		 * */
+		rect.x = 0;
+		rect.y = 0;
+		rect.w = surface->w;
+		rect.h = surface->h;
+
+		// Das surface brauchen wir nicht mehr und können den Speicher
+		// freigeben. Sicherheitshalber setzen wir es auch auf den nullptr.
+		SDL_FreeSurface(surface);
+		surface = nullptr;
+
 		bool running = true;
 
 		/*
@@ -153,6 +197,16 @@ int main(int argc, char **argv){
 			 * herummalen.
 			 * */
 			SDL_RenderClear(renderer);
+
+            // Eigentlich können wir hier mal unser Bildchen zeichnen.
+			// Wir kopieren dazu unsere Texture auf unsere Render-Fläche, den
+			// renderer. nullptr heißt hier, dass die gesamte Texture kopiert
+			// werden soll. Wir könnten aber auch nur einen Teil davon kopieren.
+			// Der letzte Parameter, rect, gibt das Ziel an. Bisher ist es noch
+			// 0,0,w,h und damit müsste das Bild oben links in der Ecke
+			// auftauchen.
+            SDL_RenderCopy(renderer, texture, nullptr, &rect);
+
 			SDL_RenderPresent(renderer);
 
 		}
@@ -171,7 +225,9 @@ int main(int argc, char **argv){
 	 * Wir müssen noch etwas aufräumen.
 	 * Wahrscheinlich haben wir einen renderer und ein window. Die müssen noch
 	 * zerstört werden.
+	 * Auch die Texture, die wir wahrscheinlich haben, muss freigegeben werden.
 	 * */
+	SDL_DestroyTexture(texture);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 
