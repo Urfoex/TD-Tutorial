@@ -65,7 +65,7 @@ void IMG_ANNAHME( bool stimmt){
 
 
 /*
- * Was wollten wir...
+ * Was wollen wir...
  * → Einheiten bewegen
  * Dazu brauchen wir:
  * → eine Bewegung pro Frame
