@@ -2,7 +2,7 @@
 # Bilder herum. Diese wollen wir an ihren Zielord kopieren.
 # Dazu brauchen wir erst einmal eine Liste mit den Bildern.
 SET( IMAGE_FILES
-	enemy.bmp
+	enemy.png
 )
 
 # Für jedes Bild in unserer Liste:

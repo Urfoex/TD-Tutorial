@@ -9,8 +9,12 @@
  * Hier unter Linux liegt SDL.h in /usr/include/SDL2/
  * Über CMake wird dieser Pfad automatisch mit als Include-Pfad an den Kompiler
  * übergeben.
+ * BMP sind für den Anfang OK. Aber PNG Bilder bieten doch etwas mehr komfort.
+ * Um diese Nutzen zu können, brauchen wir aber die SDL_image Bibliothek.
  * */ 
 #include <SDL.h>
+#include <SDL_image.h>
+
 /*
  * Falls Fehler auftreten, werfen wir einfach mit exceptions um uns. Irgendwer
  * wird sie schon fangen. Hier in den Includes sind ein paar Ausnahmen
@@ -30,6 +34,16 @@
 void SDL_ANNAHME( bool stimmt){
 	if(!stimmt){
 		throw std::runtime_error(std::string() + SDL_GetError());
+	}
+}
+
+/*
+ * Eine plumpe Kopie der Zeilen oben drüber.
+ * (Vielleicht später geschickt ummodeln.)
+ * */
+void IMG_ANNAHME( bool stimmt){
+	if(!stimmt){
+		throw std::runtime_error(std::string() + IMG_GetError());
 	}
 }
 
@@ -80,6 +94,14 @@ int main(int argc, char **argv){
 		// beenden alles.
 		SDL_ANNAHME( SDL_Init( SDL_INIT_EVERYTHING) != -1);
 
+
+		/*
+		 * SDL_image müssen wir auch initialisieren.
+		 * In dem Fall wollen wir gerne PNG nutzen. Ein paar andere Formate
+		 * ewrden auch unterstützt, interessieren uns aber gerade nicht.
+		 * */
+		IMG_ANNAHME( (IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) != 0);
+
 		/*
 		 * Nun legen wir ein neues Fenster an.
 		 * Die Parameter sprechen im Prinzip für sich.
@@ -127,8 +149,9 @@ int main(int argc, char **argv){
 
 		/*
 		 * Laden wir also das Bild.
+		 * Diesmal als PNG und mit SDL_image.
 		 * */
-		surface = SDL_LoadBMP("images/enemy.bmp");
+		surface = IMG_Load("images/enemy.png");
 
 		// Hoffentlich konnte das Bild geladen werden ...
 		SDL_ANNAHME(surface != nullptr);
@@ -233,6 +256,8 @@ int main(int argc, char **argv){
 
 
 	// Und am Ende natürlich ganz sicher gehen und SDL beenden.
+	// Und SDL_image auch.
+	IMG_Quit();
 	SDL_Quit();
 
 

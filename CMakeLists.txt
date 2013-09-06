@@ -20,7 +20,10 @@ FIND_PACKAGE(PkgConfig REQUIRED)
 # Nutzen wir also pkg-config um die Pakete zu finden.
 # Sollten diese nicht gefunden werden, wird beim Laufen lassen ein Fehler
 # angezeigt, falls das entsprechende Pakete mit REQUIRED geflaggt wurde.
+# SDL_image ist ein eigenes Paket, eine eigene Bibliothek. Darum müssen wir sie
+# auch extra hinzufügen.
 PKG_CHECK_MODULES(SDL2 REQUIRED sdl2)
+PKG_CHECK_MODULES(SDL2_Image REQUIRED SDL2_image)
 
 
 # Sind wir hier, wurde alles gefunden. Also lasst es uns nutzen.
@@ -30,6 +33,7 @@ PKG_CHECK_MODULES(SDL2 REQUIRED sdl2)
 # Variablen, in denen die passenden Pfade stehen. Hier müssen wir sie nur 
 # noch weiterreichen.
 INCLUDE_DIRECTORIES( ${SDL2_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES( ${SDL2_Image_INCLUDE_DIRS})
 
 
 # Hurra Hurra C++11 ist da!
@@ -56,7 +60,7 @@ ADD_EXECUTABLE(TD_Tutorial ${SOURCE_FILES})
 
 # Und zu guter letzt müssen noch die nötigen Bibliotheken zum Projekt gelinkt
 # werden.
-TARGET_LINK_LIBRARIES(TD_Tutorial ${SDL2_LIBRARIES})
+TARGET_LINK_LIBRARIES(TD_Tutorial ${SDL2_LIBRARIES} ${SDL2_Image_LIBRARIES})
 
 # Wir haben Bilder.
 # Die Bilder liegen in einem extra Ordner.
