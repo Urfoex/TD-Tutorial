@@ -96,6 +96,7 @@ void IMG_ANNAHME( bool stimmt){
  * → Wo ist die Liste mit Wegpunkten
  * → Wo ist mein nächster Punkt
  * 
+ * Gut. Das wäre das.
  * */
 
 /*
@@ -133,8 +134,8 @@ class Einheit {
 			//
 			// Wir brauche double für die weiteren Berechnungen. 
 
-			double wegX = m_zielPosition[0] - m_rect.x;
-			double wegY = m_zielPosition[1] - m_rect.y;
+			double wegX = m_naechsterWegpunkt[0] - m_rect.x;
+			double wegY = m_naechsterWegpunkt[1] - m_rect.y;
 
             // Wir sollen insgesamt eine Stecke ablaufen von ?
 			// Das dürfte der Betrag des Insgesamtweg Vektors sein
@@ -177,6 +178,15 @@ class Einheit {
 				auto scale = derWeg/wegLaenge;
 				wegX *= scale;
 				wegY *= scale;
+			}else{
+				// Wir schaffen des letzten Rest in einem Zug!
+				// Wir können also uns danach auf den nächsten Wegpunkt stürzen
+				// Vorher müssen wir aber feststellen, ob es noch einen nächsten
+				// Wegpunkt gibt oder ob wir schon am Ziel sind.
+				if( m_naechsterWegpunktID < m_alleWegpunkte->size()){
+					m_naechsterWegpunkt = m_alleWegpunkte->at( m_naechsterWegpunktID);
+					++m_naechsterWegpunktID;
+				}
 			}
 
 			// Was hinter dem Komma kommt, das schmeißen wir mit in die
@@ -292,9 +302,9 @@ class Einheit {
 		double m_geschwindigkeit = (1280.0 /2.0)/1000.0; // 0.320; // in px / ms
 
 
-		int m_naechsterWegpunktID = 0;
+		uint32_t m_naechsterWegpunktID = 0;
 		Point m_naechsterWegpunkt{{0,0}};
-		WaypointListZeiger m_alleWegpunkte;
+		WaypointListZeiger m_alleWegpunkte = nullptr;
 };
 
 
@@ -432,7 +442,7 @@ int main(int argc, char **argv){
 		alleWegpunkte->push_back({{0,0}});
 		alleWegpunkte->push_back({{1024-32,0}});
 		alleWegpunkte->push_back({{0,768-32}});
-		alleWegpunkte->push_back({{1024-32,768-0}});
+		alleWegpunkte->push_back({{1024-32,768-32}});
 		alleWegpunkte->push_back({{0,0}});
 
 		// Ein kleiner Gegner:
