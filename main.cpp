@@ -23,6 +23,22 @@
 #include <exception>
 #include <stdexcept>
 
+// Die Array-Klasse.
+// Es ist ein Array statischer Größe.
+// Vector ist auch eine Array-Klasse, aber mit dynamischer Größe.
+// Es kann während der Laufzeit seine Größe anpassen, neue Elemente bekommen
+// oder welche entfernen.
+#include <array>
+#include <vector>
+
+// Natürlich könnte man auch einfach die alten * Zeiger verwenden.
+// SmartPointer sind doch aber etwas angenehmer. Sie passen auf den Inhalt auf
+// und sorgen sich etwas um die Speicherbereinigung.
+#include <memory>
+
+// Für ein paar Mathefunktionen
+#include <cmath>
+
 /*
  * Das hier ist eine kleine Hilfsfunktion.
  * An sich ist sie wohl auch als ASSERT bekannt.
@@ -46,6 +62,240 @@ void IMG_ANNAHME( bool stimmt){
 		throw std::runtime_error(std::string() + IMG_GetError());
 	}
 }
+
+
+/*
+ * Was wollten wir...
+ * → Einheiten bewegen
+ * Dazu brauchen wir:
+ * → eine Bewegung pro Frame
+ * → eine "Einheit"
+ * → ein Weg
+ *
+ * Egal wie viele Frames man pro Sekunde hat, soll sich eine Einheit gleich
+ * bewegen. Die Bewegung muss also Abhängig von den Frames je Sekunde sein.
+ * Je mehr FPS, desto kleinere Schritte.
+ *
+ * Jetzt basteln wir uns eine Einheit.
+ * Das wird eine eigene Klasse.
+ * → Update soll jeden Frame aufgerufen werden und die Position neu berechnen
+ * → Draw soll die Einheit zeichnen
+ * Beide müssen public sein, damit sie von außen aufgerufen werden können.
+ *
+ * Erstmal haben wir einen ziemlich einfachen Weg. Er geht nur von 0,0 nach
+ * 1024,768.
+ * Es wäre aber praktisch, wenn wir einen beliebigen Weg laufen könnten. Immer
+ * in Teilabschnitte - versteht sich.
+ * Waypoints machen sich da nicht schlecht.
+ * Wir brauchen also eine Liste von Wegpunkten.
+ * Und dann laufen wir diese ab.
+ * Viele Einheiten sollen später auf dem gleichen Weg laufen. Also ist es
+ * besser, wie auch bei der Texture, dass die Einheiten sich die Wegpunkte
+ * teilen. 
+ * Die Einheit muss also nur wissen:
+ * → Wo ist die Liste mit Wegpunkten
+ * → Wo ist mein nächster Punkt
+ * 
+ * */
+
+/*
+ * Faulheit!
+ * Wir erstellen ein paar Synonyme.
+ * Es ist kürzer einfach 'Point' als Type zu verwenden, als dieses std::array...
+ * Auch der Zeiger würde ausgeschrieben um einiges länger sein, und ggf. etwas
+ * unverständlich. So kann man dem Typ auch eine kleine Bedeutung anhängen.
+ * */
+typedef std::array<int, 2> Point;
+typedef std::vector<Point> WaypointList;
+typedef std::shared_ptr<WaypointList> WaypointListZeiger;
+
+// Der shared_ptr ist ein Konstrukt, der im Prinzip ein * Zeiger ist.
+// Er sorgt aber dafür, dass, sobald keiner mehr den Zeiger verwendet, dieser
+// gelöscht wird. Man muss also nicht acht geben, wann man wohlmöglich ein
+// 'delete' setzen müsste. 
+
+class Einheit {
+	public:
+		// Wir geben nichts zurück.
+		// Aber wir brauchen die Information, wie viel Zeit für den Frame
+		// verstrichen ist. Je größer die Zeit, desto weiter müssen wir uns
+		// bewegen. Heißt aber auch, dass nur wenig FPS da sein werden.
+		// Sind viele FPS da, wird die Zeit pro Frame kleiner, und wir bewegen
+		// uns in kleineren Schritten.
+		void update( int frameZeit){
+
+			// In m_rect steckt x und y, welche wir nutzen können um zu sagen,
+			// an welcher Position wir sind und die Texture zeichnen wollen
+			//
+			// Wir sind an x,y und wollen zum Ziel.
+			// Nehmen wir Vektoren.
+			// Ziel - Anfang == Weg
+			//
+			// Wir brauche double für die weiteren Berechnungen. 
+
+			double wegX = m_zielPosition[0] - m_rect.x;
+			double wegY = m_zielPosition[1] - m_rect.y;
+
+            // Wir sollen insgesamt eine Stecke ablaufen von ?
+			// Das dürfte der Betrag des Insgesamtweg Vektors sein
+			// also von 0,0 nach 1024,768
+			// Vektorrechnung!
+			// Die Wurzel aus a² + b²
+			//auto gesamtWeg = std::sqrt( 1024*1024 + 768*768);
+
+			// Den Weg in 3 Sekunden, also 3000ms
+			// das sind dann also 
+			// 4.2666667
+			//auto pixelProSekunde = gesamtWeg / (m_speed * 1000);
+
+
+            // Unser restlicher Weg ist mit wegX,Y gegeben.
+			// Wie lang ist dieser?
+			auto wegLaenge = std::sqrt( wegX*wegX + wegY*wegY);
+			
+
+			// Ist der Weg größer, als das, was wir innerhalb der Zeit schaffen
+			// würden, dann dürfen wir nicht soweit gehen.
+			// Pro MS dürfen wir maximal 4 Pixel gehen. Das legen wir jetzt
+			// einfach so fest. 
+			// Wir werden pro Frame nicht immer genau eine Millisekunde Zeit
+			// haben. Also können wir auch nicht immer nur maximal 4 Schritte
+			// gehen. Haben wir mehr Zeit gebraucht, gehen wir weiter. Wir
+			// müssen also die 4 mit der Zeit für einen Frame multiplizieren.
+			// Speed ist zur Zeit die angabe, wie lange die Einheit für einen
+			// "Streckenabschnitt" benötigen darf. 1 heißt 1Sekunde, 5 sind 5
+			// Sekunden.
+			// Besser ist eine Geschwindigkeit in Pixel pro Millisekunde.
+			//  s = v*t --- weg ist geschwindigkeit * zeit
+			// Je kleiner die Geschwindigkeit desto kürzer der Weg in gleicher
+			// Zeit.
+			//
+			auto derWeg = m_geschwindigkeit * frameZeit;
+			if( wegLaenge > derWeg){
+				// Ist der Weg zu lang, dann kürzen wir ihn soweit, dass es
+				// genau 4 Pixel werden.
+				auto scale = derWeg/wegLaenge;
+				wegX *= scale;
+				wegY *= scale;
+			}
+
+			// Was hinter dem Komma kommt, das schmeißen wir mit in die
+			// restliche Bewegung rein.
+			int iwegX = (int)std::floor(wegX);
+			int iwegY = (int)std::floor(wegY);
+			m_restBewegung[0] += (wegX - iwegX);
+			m_restBewegung[1] += (wegY - iwegY);
+
+
+			// Ist die restliche Bewegung größer gleich einem Pixel auf einer
+			// Achse, dann nehmen wir den Pixel und packen ihn zu der Bewegung
+			// mit hinzu.
+			int restX = (int)std::floor(m_restBewegung[0]);
+			int restY = (int)std::floor(m_restBewegung[1]);
+			iwegX += restX;
+			iwegY += restY;
+			m_restBewegung[0] -= restX;
+			m_restBewegung[1] -= restY;
+
+
+
+			// pro Millisekunde also 4.266 Pixel
+			// Schwierig. Es gibt selten Pixel, die kleiner 1 sind ;-)
+			//
+			// Die Pixel, die wir gehen dürfen, bewegen wir uns jetzt weiter.
+			//
+
+			m_rect.x += iwegX;
+			m_rect.y += iwegY;
+		
+		}
+
+		// Wir geben auch hier nichts zurück.
+		// Aber wir müssen wissen, wo wir die Einheit hinmalen sollen, auf
+		// welchen renderer. Deswegen übergeben wir diesen.
+		// In der Main-Funktion liegt der renderer schon in einem Zeiger, also
+		// nutzen wir das und verlangen hier auch einfach einen Zeiger.
+		//
+		// Wir kopieren die Texture an die passende Stelle auf die
+		// Render-Fläche. Das haben wir ja schon weiter unten im Code gemacht.
+		void draw(SDL_Renderer *renderer){
+			SDL_RenderCopy(renderer, m_texture, nullptr, &m_rect);
+		}
+
+		// Irgendwoher müssen wir ja unsere Texture bekommen. In dem Fall
+		// übergeben und setzen wir sie hier.
+		// Diese Methode muss dann aber auch vor dem ersten draw aufgerufen
+		// werden!
+		// In der  Texture steckt die Größe nicht drin, also müssen wir die auch
+		// noch erfahren.
+		void init( SDL_Texture *texture, SDL_Rect rect){
+			m_texture = texture;
+			m_rect.x = rect.x;
+			m_rect.y = rect.y;
+			m_rect.w = rect.w;
+			m_rect.h = rect.h;
+		}
+
+
+		// wir setzen die Liste der Wegpunkte
+		void setzeWegpunkte( WaypointListZeiger wegpunkte){
+			m_alleWegpunkte = wegpunkte;
+
+			// Wir haben die Liste.
+			// Also setzten wir doch gleich das erste Ziel
+			m_naechsterWegpunkt = m_alleWegpunkte->at(0);
+			m_naechsterWegpunktID = 1;
+		}
+
+
+		// An sich könnten wir so neue Wegpunkte in die Liste einfügen. Aber
+		// hier brauchen wir das nicht.
+		//void hinzufuegenWegpunkte( WaypointListZeiger wegpunkte){
+			//m_alleWegpunkte->insert(m_alleWegpunkte->end(), wegpunkte->begin(), wegpunkte->end());
+		//}
+	private:
+		// Private heißt, dass nur *ich*, also die Klasse selber zugriff auf die
+		// Variable oder Methode hat. Keiner kann diese von außen verändern oder
+		// lesen. Nicht einmal abgeleitete Klassen.
+		// 
+		// Um während des draw etwas zeichnen zu können, müssen wir auch etwas
+		// zeichenbares haben. Also am besten eine Texture.
+		// Wir könnten nun eine eigene Texture für jede Einheit nehmen. Aber da
+		// die Einheiten meist gleich sind, dürfen sie sich auch eine Texture
+		// teilen. Das spart Speicherplatz.
+		SDL_Texture *m_texture = nullptr;
+		SDL_Rect m_rect{0,0,0,0};
+
+		// Wir kennen ja noch die Größe des Fensters. Laufen wir also einfach
+		// mal schräg rüber (sofern wir bei 0,0 starten sollten).
+		// TODO natürlich müssen wir das nacher noch ordentlich machen.
+		// FIXME Ich weiß, dass die Texture 32x32 groß ist. Die Größe ziehe ich
+		// von der ZielPosition ab, damit ich unten rechts die Einheit auch noch
+		// sehe.
+		// 
+		std::array<int,2> m_zielPosition{{1024-32,768-32}};
+
+		// Wir bewegen uns ja immer in Pixeln. Die Berechnungen sind aber teis
+		// Komma-Werte. Also müssen wir irgendwo das absichern, was wir
+		// "abschneiden". Ist das abgeschnittene groß genug, hängen wir es an
+		// die Bewegung dran.
+		std::array<double,2> m_restBewegung{{0,0}};
+
+		// Probieren wir mal in 3 Sekunden es über den Bildschirm zu schaffen.
+		// Irgendwie war 4 viel zu schnell.
+		// Mit 1 geht es besser. Stimmt aber jetzt nicht mehr als "Sekunden"
+		//
+		// So passt das. Die Gesamtstrecke ist ja gerade noch 1280 px. Die will
+		// ich in 2 Sekunden bestreiten. Also 640 px pro Sekunde.
+		// Die 2 kann ich jetzt einfach durch andere Sekunden erstetzen. Mehr
+		// ist langsamer, weniger ist schneller.
+		double m_geschwindigkeit = (1280.0 /2.0)/1000.0; // 0.320; // in px / ms
+
+
+		int m_naechsterWegpunktID = 0;
+		Point m_naechsterWegpunkt{{0,0}};
+		WaypointListZeiger m_alleWegpunkte;
+};
 
 
 /* Die Standard-Funktion eines jeden C++ Programms: main
@@ -175,6 +425,37 @@ int main(int argc, char **argv){
 		SDL_FreeSurface(surface);
 		surface = nullptr;
 
+		// Wir erzeugen eine Wegpunktliste und bekommen davon einen shared_ptr
+		auto alleWegpunkte = std::make_shared<WaypointList>();
+
+		// Füllen wir ein paar Wegpunkte in die Liste
+		alleWegpunkte->push_back({{0,0}});
+		alleWegpunkte->push_back({{1024-32,0}});
+		alleWegpunkte->push_back({{0,768-32}});
+		alleWegpunkte->push_back({{1024-32,768-0}});
+		alleWegpunkte->push_back({{0,0}});
+
+		// Ein kleiner Gegner:
+		Einheit einheit;
+		einheit.init(texture, rect);
+		einheit.setzeWegpunkte(alleWegpunkte);
+
+		// Die aktuelle "Zeit" in Millisekunden
+		// wir nutzen hier 'auto' als Typangabe. C++ weiß selber, was für ein
+		// Typ das sein wird, weil dieser ja durch den Rückgabewert der
+		// Funktion bestimmt ist. 
+		// "auto irgendwas;" funktioniert nicht, da keine Typinformation gegeben
+		// ist. Durch die direkte Zuweisung, wie unten, geht das.
+		// 
+		// Wir nutzen hier noch einen kleinen ZeitCounter, damit wir nach
+		// 1000ms, also nach einer Sekunde anzeigen können, wie viel Frames
+		// gerade gerendert wurden. Die FPS - frames pro sekunde.
+		auto startZeit = SDL_GetTicks();
+		auto endZeit = SDL_GetTicks();
+		auto differenzZeit = endZeit - startZeit;
+		int zeitCounter = 0;
+		int framesProSekunde = 0;
+
 		bool running = true;
 
 		/*
@@ -184,6 +465,7 @@ int main(int argc, char **argv){
 		 * bis irgendwann die running Variable false ist.
 		 * */
 		while(running){
+			startZeit = SDL_GetTicks();
 
 			/*
 			 * Die Event-Schleife.
@@ -205,6 +487,10 @@ int main(int argc, char **argv){
 						break;
 				}
 			}
+
+			// Wir haben Events bekommen und können reagieren.
+			// Also können wir hier unsere Einheiten updaten.
+			einheit.update(differenzZeit);
 
 			/*
 			 * Hier unten zeichnen wir auf unseren renderer
@@ -230,8 +516,28 @@ int main(int argc, char **argv){
 			// auftauchen.
             SDL_RenderCopy(renderer, texture, nullptr, &rect);
 
+            // Und hier zeichnen wir die Einheiten
+			einheit.draw(renderer);
+
 			SDL_RenderPresent(renderer);
 
+
+			// Die Zeit für ein Frame bekommen wir, in dem wir die Zeit am Ende
+			// minus der Zeit am Anfang rechnen.
+            endZeit = SDL_GetTicks();
+			differenzZeit = endZeit - startZeit;
+			zeitCounter += differenzZeit;
+
+			// Wir haben wieder einen Frame geschafft.
+			// Haben wir bereits 1000ms hinter uns, dann geben wir auf der
+			// Konsole auf dem speziellen Log-Stream eine Nachricht aus, die die
+			// FPS anzeigt.
+			++framesProSekunde;
+			if( zeitCounter >= 1000){
+				std::clog << "[INFO] FPS: " << framesProSekunde << std::endl;
+				framesProSekunde = 0;
+				zeitCounter = 0;
+			}
 		}
 
 	
