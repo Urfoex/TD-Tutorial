@@ -3,6 +3,7 @@
 # Dazu brauchen wir erst einmal eine Liste mit den Bildern.
 SET( IMAGE_FILES
 	enemy.png
+	turret.png
 )
 
 # Für jedes Bild in unserer Liste:

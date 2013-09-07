@@ -117,6 +117,56 @@ typedef std::shared_ptr<WaypointList> WaypointListZeiger;
 
 class Einheit {
 	public:
+        // Hier sind wir richtig.
+		// Es gibt ein paar kleine Methoden für eine Klasse, die an speziellen
+		// Orten aufgerufen werden. 
+		// Man kenn sie als Konstruktoren
+		// Es gibt ein paar davon.
+		// Gerade interessieren wir uns für den Copy-Constructor
+		// Mit diesem sehen wir, dass wir unten in die Liste nicht das Objekt
+		// selber, sondern eine Kopie davon reinstecken.
+		//
+		// C++ baut automatisch diese Konstruktoren, wenn er es kann.
+		// Da wir nichts "seltsames" nutzen, hat uns C++ die Konstruktoren
+		// passend eingesetzt.
+		// Jetzt bauen wir uns einen eigenen.
+		// 
+		// Kopierkonstruktor
+		// Wir erstellen also eine Kopie. Von einem Objekt, dass vom gleichen
+		// Typ ist.
+		// Das ist die Zuweisung von Werten zu unserem Objekt
+		// Wir übernehmen die Werte, die die einheit (Parameter) hat.
+		// An sich könnten wir das auch innerhalb der Methode, also in den {}
+		// machen, aber hier oben nach dem : werden die Werte sowieso festgelegt
+		// Schreiben wir also erst in den {} Werte in die Variablen, so werden
+		// diese 2 mal geschrieben. Einmal oben nach dem : und einmal im {}
+		//
+		Einheit( const Einheit &einheit)
+			: m_texture(einheit.m_texture)
+			, m_rect(einheit.m_rect)
+			, m_zielPosition(einheit.m_zielPosition)
+			, m_restBewegung( einheit.m_restBewegung)
+			, m_geschwindigkeit(einheit.m_geschwindigkeit)
+			, m_naechsterWegpunktID(einheit.m_naechsterWegpunktID)
+			, m_naechsterWegpunkt(einheit.m_naechsterWegpunkt)
+			, m_alleWegpunkte(einheit.m_alleWegpunkte)
+			, m_leben(einheit.m_leben)
+		{
+			// Lassen wir das Programm jetzt laufen, so sehen wir: 
+			// der Konstruktor unten wird nur ein mal aufgerufen
+			// der Kopier-Konstruktor hier jedoch öfter. Und zwar genau dann,
+			// wenn wir eine neue Einheit in die Liste der aktiven Einheiten
+			// stecken.
+			std::clog << "[Einheit] Kopier-Konstruktor" << std::endl;
+		}
+
+		// Das hier ist der ganz normale Konstruktor.
+		// Er wird aufgerufen bei zB: 
+		//		Einheit e;
+		Einheit(){
+			std::clog << "[Einheit] Konstruktor" << std::endl;
+		};
+
 		// Wir geben nichts zurück.
 		// Aber wir brauchen die Information, wie viel Zeit für den Frame
 		// verstrichen ist. Je größer die Zeit, desto weiter müssen wir uns
@@ -263,6 +313,19 @@ class Einheit {
 		//void hinzufuegenWegpunkte( WaypointListZeiger wegpunkte){
 			//m_alleWegpunkte->insert(m_alleWegpunkte->end(), wegpunkte->begin(), wegpunkte->end());
 		//}
+		
+        Point getPosition(){
+			return {{m_rect.x, m_rect.y}};
+		}
+
+
+		// Wir wurden getoffen!
+		// Unser Leben sinkt...
+		// Sind wir tot, leben <= 0, dann ist es vorbei
+		bool gotHit(int damage){
+			m_leben -= damage;
+			return m_leben <= 0;
+		}
 	private:
 		// Private heißt, dass nur *ich*, also die Klasse selber zugriff auf die
 		// Variable oder Methode hat. Keiner kann diese von außen verändern oder
@@ -305,6 +368,85 @@ class Einheit {
 		uint32_t m_naechsterWegpunktID = 0;
 		Point m_naechsterWegpunkt{{0,0}};
 		WaypointListZeiger m_alleWegpunkte = nullptr;
+
+
+		int m_leben = 5;
+};
+
+
+/*
+ * Als nächstes der Tower.
+ * Er ist fest.
+ * Er schießt auf Gegner in einem bestimmten Radius.
+ *
+ * */
+class Turm {
+	public:
+        void init( SDL_Texture *texture, SDL_Rect rect){
+			m_texture = texture;
+			m_rect = rect;
+		}
+
+		void update( int frameZeit){
+			// TODO
+			// Es wäre natürlich ganz praktisch noch ein paar Schüsse zu haben
+			// Soll er doch bei jedem Update eine dazu bekommen ...
+			// TODO Natürlich sollte hier eine Zeit eingesetzt werden.
+			// Vielleicht nach jeder Sekunde oder so. Aber zum Testen sollte es
+			// erstmal so gehen
+			++m_shootsLeft;
+		
+		}
+
+		void draw( SDL_Renderer *renderer){
+			SDL_RenderCopy(renderer, m_texture, nullptr, &m_rect);
+		}
+
+        /*
+		 * 
+		 * 1) Haben wir noch Schuss übrig?
+		 * 2) Schauen ob sich Einheit in Reichweite befindet
+		 * 3) Schießen.
+		 *
+		 * */
+		bool shoot( Einheit &einheit){
+			if( m_shootsLeft <= 0) return false;
+			auto ePos = einheit.getPosition();
+
+			// Der Vektor von hier zum Gegner
+			Point zielVector{{ ePos[0] - m_rect.x, ePos[1] - m_rect.y}};
+
+			// Die länge des Weges quadriert.
+			auto weg = zielVector[0]*zielVector[0] + zielVector[1]*zielVector[1];
+
+			// Wir können das Quadrat nutzen, weil in unserem Fall
+			// sqrt(a) <= sqrt(b)  auch gleich a <= b
+			// wir sparen also die Berechnung der Wurzel
+			// Tja, ist also der Weg bis zum Gegner größer als unsere
+			// Reichweite, dann hören wir auf.
+			if( weg > m_reichweite2) return false;
+
+			// An dieser Stelle wissen wir:
+			// - wir haben noch Schüsse übrig
+			// - der Gegner ist in Reichweite
+			// → also schießen wir
+			// Wir haben dann einen Schuss weniger.
+			// Der eigentliche Schuss wird an anderer Stelle behandelt.
+			--m_shootsLeft;
+			return true;
+		}
+
+	private:
+		SDL_Texture *m_texture = nullptr;
+		SDL_Rect m_rect{0,0,0,0};
+		//Point m_rotation; // Wo schaut er hin. Brauchen wir aber erstmal nicht.
+		
+		int m_shootsLeft = 0;
+		//int m_maxShoots = 1; // FIXME: wird gerade nicht benutzt
+		// Ein Feld ist jetzt mal 32px breit. Die Reichweite ist 5 Felder.
+		int m_reichweite = 32*5;
+		int m_reichweite2 = m_reichweite*m_reichweite; // das quadrat davon
+		
 };
 
 
@@ -342,8 +484,16 @@ int main(int argc, char **argv){
 	 * Bildes rein.
 	 * */
 	SDL_Surface *surface = nullptr;
-	SDL_Texture *texture = nullptr;
-	SDL_Rect rect{0,0,0,0};
+	SDL_Texture *textureEinheit = nullptr;
+	SDL_Texture *textureTurm = nullptr;
+	SDL_Rect rectEinheit{0,0,0,0};
+	SDL_Rect rectTurm{0,0,0,0};
+
+	// Eine Liste aller aktiven Einheiten
+	// so können wir diese leichter überwachen
+	std::vector<Einheit> aktiveEinheiten;
+	std::vector<std::vector<Einheit>::iterator> verloreneEinheiten;
+
 
 	// "Versuchen" wir doch einfach mal. Und falls ein Fehler/ eine Ausnahme
 	// auftreten sollte, wird sie weiter unten gefangen.
@@ -418,22 +568,33 @@ int main(int argc, char **argv){
 
 		// Aus dem surface, der "Fläche", die wir haben, erstellen wir die
 		// Texture. Und wieder ein Check, dass dies auch geklappt hat.
-		texture = SDL_CreateTextureFromSurface(renderer, surface);
-		SDL_ANNAHME(texture != nullptr);
+		textureEinheit = SDL_CreateTextureFromSurface(renderer, surface);
+		SDL_ANNAHME(textureEinheit != nullptr);
 
 		/*
 		 * Das Bild beginnt bei 0,0 und ist w,h Pixel groß. Die Werte finden wir
 		 * in surface.
 		 * */
-		rect.x = 0;
-		rect.y = 0;
-		rect.w = surface->w;
-		rect.h = surface->h;
+		rectEinheit.x = 0;
+		rectEinheit.y = 0;
+		rectEinheit.w = surface->w;
+		rectEinheit.h = surface->h;
 
 		// Das surface brauchen wir nicht mehr und können den Speicher
 		// freigeben. Sicherheitshalber setzen wir es auch auf den nullptr.
 		SDL_FreeSurface(surface);
 		surface = nullptr;
+
+        // Die Texture des Turmes
+		surface = IMG_Load("images/turret.png");
+		SDL_ANNAHME(surface != nullptr);
+		textureTurm = SDL_CreateTextureFromSurface(renderer, surface);
+		SDL_ANNAHME(textureTurm != nullptr);
+		rectTurm.x = (1024-32)/2; // Der Turm soll in der Mitte des Bildschirms
+		rectTurm.y = (768-32)/2; // angezeigt werden
+		rectTurm.w = surface->w;
+		rectTurm.h = surface->h;
+
 
 		// Wir erzeugen eine Wegpunktliste und bekommen davon einen shared_ptr
 		auto alleWegpunkte = std::make_shared<WaypointList>();
@@ -447,8 +608,21 @@ int main(int argc, char **argv){
 
 		// Ein kleiner Gegner:
 		Einheit einheit;
-		einheit.init(texture, rect);
+		einheit.init(textureEinheit, rectEinheit);
 		einheit.setzeWegpunkte(alleWegpunkte);
+
+		// die Einheit kommt in die Liste der aktiven Einheiten
+		//
+		// ! Es kommt nicht DIESE Einheit in die Liste.
+		// Es wird eine Kopie davon erstellt!
+		// ! "einheit" bleibt hier.
+		// Am Besten mal ein kleines Stück Code dafür zur Demonstration.
+		aktiveEinheiten.push_back(einheit);
+
+
+		// Ein Türmchen
+		Turm turm;
+		turm.init(textureTurm, rectTurm);
 
 		// Die aktuelle "Zeit" in Millisekunden
 		// wir nutzen hier 'auto' als Typangabe. C++ weiß selber, was für ein
@@ -500,7 +674,52 @@ int main(int argc, char **argv){
 
 			// Wir haben Events bekommen und können reagieren.
 			// Also können wir hier unsere Einheiten updaten.
-			einheit.update(differenzZeit);
+			// alle aktiven Einheiten werden geupdatet.
+			for( auto &e:aktiveEinheiten) e.update(differenzZeit);
+			//einheit.update(differenzZeit);
+			turm.update(differenzZeit);
+
+
+
+			// Wir müssen hier mit den Iteratoren hantieren, da wir nur so
+			// wissen, welches Element wir nachher entfernen können.
+			// std::vector erase nimmt einen Iterator
+			// also müssen wir ihm diesen geben
+			//
+			// Warum entfernen wir die Einheit nicht gleich wenn wir wissen,
+			// dass sie hinüber ist?
+			// Tja.
+			// Das liegt hier an der Datenstruktur.
+			// Während wir über diesen Vector laufen, können wir keine Elemente
+			// davon entfernen oder irgendwo einfügen. Wer das versucht, darf
+			// sich auf Fehler einstellen.
+			// Deswegen packen wir die Einheit erst einmal zusätzlich in die
+			// extra Liste, und nehmen sie erst nachdem wir fertig sind, heraus.
+			for( auto it = aktiveEinheiten.begin(); it < aktiveEinheiten.end(); ++it){
+            //for( auto &e:aktiveEinheiten){
+				if( turm.shoot(*it)){
+					std::clog << "Treffer!" << std::endl;
+					if( it->gotHit(1)){ // FIXME: setzte Schadenswert vom Turm
+						std::clog << "Versenkt!" << std::endl;
+						// jetzt ists vorbei mit Einheit e
+						// deswegen kommt die Einheit in eine Liste
+						// die Liste der frisch Verstorbenen 
+						verloreneEinheiten.push_back(it);
+					}
+				}
+			//}
+			}
+
+			// jede verlorene Einheit wird jetzt von den aktiven Einheiten
+			// entfernt
+			for( auto it:verloreneEinheiten){
+				aktiveEinheiten.erase(it);
+				aktiveEinheiten.push_back(einheit); // just mal aus Spaß
+			}
+
+			// wir haben alle verlorene Einheiten von den aktiven entfernt
+			// jetzt können wir diese auch aus dieser Liste heraus nehmen
+			verloreneEinheiten.clear();
 
 			/*
 			 * Hier unten zeichnen wir auf unseren renderer
@@ -524,10 +743,13 @@ int main(int argc, char **argv){
 			// Der letzte Parameter, rect, gibt das Ziel an. Bisher ist es noch
 			// 0,0,w,h und damit müsste das Bild oben links in der Ecke
 			// auftauchen.
-            SDL_RenderCopy(renderer, texture, nullptr, &rect);
+            //SDL_RenderCopy(renderer, textureEinheit, nullptr, &rect);
 
             // Und hier zeichnen wir die Einheiten
-			einheit.draw(renderer);
+			// alle aktiven Einheiten auf den Renderer zeichnen
+			for( auto &e:aktiveEinheiten) e.draw(renderer);
+			//einheit.draw(renderer);
+			turm.draw(renderer);
 
 			SDL_RenderPresent(renderer);
 
@@ -566,7 +788,8 @@ int main(int argc, char **argv){
 	 * zerstört werden.
 	 * Auch die Texture, die wir wahrscheinlich haben, muss freigegeben werden.
 	 * */
-	SDL_DestroyTexture(texture);
+	SDL_DestroyTexture(textureTurm);
+	SDL_DestroyTexture(textureEinheit);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
 
