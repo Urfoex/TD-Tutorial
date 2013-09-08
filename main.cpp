@@ -36,6 +36,8 @@
 // und sorgen sich etwas um die Speicherbereinigung.
 #include <memory>
 
+#include <functional>
+
 // Für ein paar Mathefunktionen
 #include <cmath>
 
@@ -157,14 +159,14 @@ class Einheit {
 			// der Kopier-Konstruktor hier jedoch öfter. Und zwar genau dann,
 			// wenn wir eine neue Einheit in die Liste der aktiven Einheiten
 			// stecken.
-			std::clog << "[Einheit] Kopier-Konstruktor" << std::endl;
+			//std::clog << "[Einheit] Kopier-Konstruktor" << std::endl;
 		}
 
 		// Das hier ist der ganz normale Konstruktor.
 		// Er wird aufgerufen bei zB: 
 		//		Einheit e;
 		Einheit(){
-			std::clog << "[Einheit] Konstruktor" << std::endl;
+			//std::clog << "[Einheit] Konstruktor" << std::endl;
 		};
 
 		// Wir geben nichts zurück.
@@ -374,6 +376,12 @@ class Einheit {
 };
 
 
+struct TurmShootRecoverData{
+	class Turm *turm;
+};
+
+unsigned int turmShootRecover( unsigned int interval, void *data);
+
 /*
  * Als nächstes der Tower.
  * Er ist fest.
@@ -382,6 +390,15 @@ class Einheit {
  * */
 class Turm {
 	public:
+        Turm(){
+			m_timerID = SDL_AddTimer(250, turmShootRecover, &m_tsrd);
+		
+		}
+
+		~Turm(){
+			SDL_RemoveTimer(m_timerID);
+		}
+
         void init( SDL_Texture *texture, SDL_Rect rect){
 			m_texture = texture;
 			m_rect = rect;
@@ -394,8 +411,12 @@ class Turm {
 			// TODO Natürlich sollte hier eine Zeit eingesetzt werden.
 			// Vielleicht nach jeder Sekunde oder so. Aber zum Testen sollte es
 			// erstmal so gehen
-			++m_shootsLeft;
 		
+		}
+
+		void recoverShoot(){
+			++m_shootsLeft;
+			//std::clog << "Recovered to " << m_shootsLeft << std::endl;
 		}
 
 		void draw( SDL_Renderer *renderer){
@@ -411,6 +432,17 @@ class Turm {
 		 * */
 		bool shoot( Einheit &einheit){
 			if( m_shootsLeft <= 0) return false;
+
+			// Soll nur aller xx ms schießen können
+			// Braucht also cool down
+			//
+            auto currentTime = SDL_GetTicks();
+			auto diffTime = currentTime - m_lastShoot;
+			if( m_coolDown > diffTime){
+				return false;
+			}
+
+
 			auto ePos = einheit.getPosition();
 
 			// Der Vektor von hier zum Gegner
@@ -433,6 +465,7 @@ class Turm {
 			// Wir haben dann einen Schuss weniger.
 			// Der eigentliche Schuss wird an anderer Stelle behandelt.
 			--m_shootsLeft;
+			m_lastShoot = currentTime;
 			return true;
 		}
 
@@ -450,7 +483,18 @@ class Turm {
 		int m_reichweite = 32*5;
 		int m_reichweite2 = m_reichweite*m_reichweite; // das quadrat davon
 		
+		int m_timerID = 0;
+		TurmShootRecoverData m_tsrd{this};
+		unsigned int m_coolDown = 250;
+		int m_lastShoot = 0;
 };
+
+unsigned int turmShootRecover( unsigned int interval, void *data){
+	
+	TurmShootRecoverData *tsrd = static_cast<TurmShootRecoverData*>(data);
+	tsrd->turm->recoverShoot();
+	return interval;
+}
 
 /*
  * structs sind auch nur Klassen
