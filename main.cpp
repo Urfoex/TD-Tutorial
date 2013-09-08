@@ -452,6 +452,26 @@ class Turm {
 		
 };
 
+/*
+ * structs sind auch nur Klassen
+ * ohne Angabe von public oder private sind die angegebenen Werte public, bei
+ * class hingegen private
+ * */
+struct SpawnInfo{
+	public:
+		std::vector<Einheit> *einheiten;
+		Einheit *basicEinheit;
+	private:
+
+};
+
+unsigned int spawnEinheit( unsigned int interval, void *info){
+	SpawnInfo *i = static_cast<SpawnInfo*>(info);
+	i->einheiten->push_back(*(i->basicEinheit));
+
+	return interval;
+}
+
 
 /* Die Standard-Funktion eines jeden C++ Programms: main
  * Darf natürlich auch hier nicht fehlen.
@@ -629,6 +649,10 @@ int main(int argc, char **argv){
 
 		std::vector<std::array<int,4>> zuZeichnendeSchuesse;
 
+
+		SpawnInfo i{&aktiveEinheiten, &einheit};
+		auto spawnTimer = SDL_AddTimer(1000, spawnEinheit, &i);
+
 		// Die aktuelle "Zeit" in Millisekunden
 		// wir nutzen hier 'auto' als Typangabe. C++ weiß selber, was für ein
 		// Typ das sein wird, weil dieser ja durch den Rückgabewert der
@@ -740,7 +764,10 @@ int main(int argc, char **argv){
 			// entfernt
 			for( auto it:verloreneEinheiten){
 				aktiveEinheiten.erase(it);
-				aktiveEinheiten.push_back(einheit); // just mal aus Spaß
+				//
+				// jetzt nicht mehr. Wir spawnen lieber nach einer
+				// bestimmten Zeit.
+				//aktiveEinheiten.push_back(einheit); // just mal aus Spaß
 			}
 
 			// wir haben alle verlorene Einheiten von den aktiven entfernt
@@ -817,6 +844,8 @@ int main(int argc, char **argv){
 			}
 		}
 
+
+		SDL_RemoveTimer(spawnTimer);
 	
 	// Fangen wir Exceptions!
 	// In dem Fall fangen wir eine Ausnahme vom Type std::runtime_error
