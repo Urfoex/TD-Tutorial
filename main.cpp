@@ -395,6 +395,20 @@ class Turm {
 		
 		}
 
+		Turm( const Turm &turm)
+		: m_texture(turm.m_texture)
+		, m_rect(turm.m_rect)
+		, m_shootsLeft(turm.m_shootsLeft)
+		, m_reichweite(turm.m_reichweite)
+		, m_reichweite2(turm.m_reichweite2)
+		, m_timerID(0)
+		, m_tsrd({this})
+		, m_coolDown(turm.m_coolDown)
+		, m_lastShoot(turm.m_lastShoot)
+		{
+			m_timerID = SDL_AddTimer(250, turmShootRecover, &m_tsrd);
+		}
+
 		~Turm(){
 			SDL_RemoveTimer(m_timerID);
 		}
@@ -472,6 +486,11 @@ class Turm {
 		Point getPosition(){
 			return {{m_rect.x, m_rect.y}};
 		}
+
+		void setPosition( int x, int y){
+			m_rect.x = x;
+			m_rect.y = y;
+		}
 	private:
 		SDL_Texture *m_texture = nullptr;
 		SDL_Rect m_rect{0,0,0,0};
@@ -516,6 +535,12 @@ unsigned int spawnEinheit( unsigned int interval, void *info){
 	return interval;
 }
 
+void erstelleNeuenTurm(SDL_MouseButtonEvent &event, std::vector<Turm> &aktiveTuerme, Turm &turm){
+	Turm t{turm};
+	t.setPosition(event.x - 16, event.y - 16);
+	std::clog << "Neuer Turm bei " << event.x << " " << event.y << std::endl;
+	aktiveTuerme.push_back(t);
+}
 
 /* Die Standard-Funktion eines jeden C++ Programms: main
  * Darf natürlich auch hier nicht fehlen.
@@ -560,6 +585,8 @@ int main(int argc, char **argv){
 	// so können wir diese leichter überwachen
 	std::vector<Einheit> aktiveEinheiten;
 	std::vector<std::vector<Einheit>::iterator> verloreneEinheiten;
+
+	std::vector<Turm> aktiveTuerme;
 
 
 	// "Versuchen" wir doch einfach mal. Und falls ein Fehler/ eine Ausnahme
@@ -690,6 +717,7 @@ int main(int argc, char **argv){
 		// Ein Türmchen
 		Turm turm;
 		turm.init(textureTurm, rectTurm);
+		//aktiveTuerme.push_back(turm);
 
 		std::vector<std::array<int,4>> zuZeichnendeSchuesse;
 
@@ -742,6 +770,9 @@ int main(int argc, char **argv){
 					case SDL_QUIT:
 						running = false;
 						break;
+					case SDL_MOUSEBUTTONUP:
+						erstelleNeuenTurm((*(SDL_MouseButtonEvent*)&event), aktiveTuerme, turm);
+						break;
 				}
 			}
 
@@ -750,7 +781,7 @@ int main(int argc, char **argv){
 			// alle aktiven Einheiten werden geupdatet.
 			for( auto &e:aktiveEinheiten) e.update(differenzZeit);
 			//einheit.update(differenzZeit);
-			turm.update(differenzZeit);
+			for( auto &t:aktiveTuerme) t.update(differenzZeit);
 
 
 
@@ -770,35 +801,37 @@ int main(int argc, char **argv){
 			// extra Liste, und nehmen sie erst nachdem wir fertig sind, heraus.
 			for( auto it = aktiveEinheiten.begin(); it < aktiveEinheiten.end(); ++it){
             //for( auto &e:aktiveEinheiten){
-				if( turm.shoot(*it)){
-					std::clog << "Treffer!" << std::endl;
+				for( auto &t:aktiveTuerme){
+					if( t.shoot(*it)){
+						std::clog << "Treffer!" << std::endl;
 
-                    // Der Turm hat geschossen. Das sollten wir auch anzeigen.
-					// Am einfachsten mit einer Linie von Turm zu Einheit.
-					// Zeichnen tun wir aber erst weiter unten, also speichern
-					// wir die beiden Coordinaten und zeigen sie später an.
-					// 
-					// Problem: Der Schuss wird hier von Position aus geschickt.
-					// Position ist aber oben links vom Bild/der Textur. Es
-					// sieht etwas seltsam aus. Also wäre es etwas besser, wenn
-					// wir von der Mitte des Turm aus schießen und auch die
-					// Einheit in der Mitte treffen.
-					// Trick 17: Wir wissen, dass die Bilder 32px breit und hoch
-					// sind. Die Hälfte ist die Mitte, also bei 16. Vom Rand
-					// gehen wir also einfach 16 schritte runter und rüber und
-					// sind in der Mitte.
-					// FIXME: Setzte Mitte anhand der Bildgröße und nicht nach
-					// "Wissen"
-					zuZeichnendeSchuesse.push_back({{
-							turm.getPosition()[0] + 16, turm.getPosition()[1] + 16,
-							it->getPosition()[0] + 16, it->getPosition()[1] + 16}});
+						// Der Turm hat geschossen. Das sollten wir auch anzeigen.
+						// Am einfachsten mit einer Linie von Turm zu Einheit.
+						// Zeichnen tun wir aber erst weiter unten, also speichern
+						// wir die beiden Coordinaten und zeigen sie später an.
+						// 
+						// Problem: Der Schuss wird hier von Position aus geschickt.
+						// Position ist aber oben links vom Bild/der Textur. Es
+						// sieht etwas seltsam aus. Also wäre es etwas besser, wenn
+						// wir von der Mitte des Turm aus schießen und auch die
+						// Einheit in der Mitte treffen.
+						// Trick 17: Wir wissen, dass die Bilder 32px breit und hoch
+						// sind. Die Hälfte ist die Mitte, also bei 16. Vom Rand
+						// gehen wir also einfach 16 schritte runter und rüber und
+						// sind in der Mitte.
+						// FIXME: Setzte Mitte anhand der Bildgröße und nicht nach
+						// "Wissen"
+						zuZeichnendeSchuesse.push_back({{
+								t.getPosition()[0] + 16, t.getPosition()[1] + 16,
+								it->getPosition()[0] + 16, it->getPosition()[1] + 16}});
 
-					if( it->gotHit(1)){ // FIXME: setzte Schadenswert vom Turm
-						std::clog << "Versenkt!" << std::endl;
-						// jetzt ists vorbei mit Einheit e
-						// deswegen kommt die Einheit in eine Liste
-						// die Liste der frisch Verstorbenen 
-						verloreneEinheiten.push_back(it);
+						if( it->gotHit(1)){ // FIXME: setzte Schadenswert vom Turm
+							std::clog << "Versenkt!" << std::endl;
+							// jetzt ists vorbei mit Einheit e
+							// deswegen kommt die Einheit in eine Liste
+							// die Liste der frisch Verstorbenen 
+							verloreneEinheiten.push_back(it);
+						}
 					}
 				}
 			//}
@@ -846,7 +879,7 @@ int main(int argc, char **argv){
 			// alle aktiven Einheiten auf den Renderer zeichnen
 			for( auto &e:aktiveEinheiten) e.draw(renderer);
 			//einheit.draw(renderer);
-			turm.draw(renderer);
+			for( auto &t:aktiveTuerme) t.draw(renderer);
 
             // Schüsse zeichnen
 			//
