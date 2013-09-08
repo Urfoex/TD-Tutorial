@@ -436,6 +436,9 @@ class Turm {
 			return true;
 		}
 
+		Point getPosition(){
+			return {{m_rect.x, m_rect.y}};
+		}
 	private:
 		SDL_Texture *m_texture = nullptr;
 		SDL_Rect m_rect{0,0,0,0};
@@ -624,6 +627,8 @@ int main(int argc, char **argv){
 		Turm turm;
 		turm.init(textureTurm, rectTurm);
 
+		std::vector<std::array<int,4>> zuZeichnendeSchuesse;
+
 		// Die aktuelle "Zeit" in Millisekunden
 		// wir nutzen hier 'auto' als Typangabe. C++ weiß selber, was für ein
 		// Typ das sein wird, weil dieser ja durch den Rückgabewert der
@@ -699,6 +704,27 @@ int main(int argc, char **argv){
             //for( auto &e:aktiveEinheiten){
 				if( turm.shoot(*it)){
 					std::clog << "Treffer!" << std::endl;
+
+                    // Der Turm hat geschossen. Das sollten wir auch anzeigen.
+					// Am einfachsten mit einer Linie von Turm zu Einheit.
+					// Zeichnen tun wir aber erst weiter unten, also speichern
+					// wir die beiden Coordinaten und zeigen sie später an.
+					// 
+					// Problem: Der Schuss wird hier von Position aus geschickt.
+					// Position ist aber oben links vom Bild/der Textur. Es
+					// sieht etwas seltsam aus. Also wäre es etwas besser, wenn
+					// wir von der Mitte des Turm aus schießen und auch die
+					// Einheit in der Mitte treffen.
+					// Trick 17: Wir wissen, dass die Bilder 32px breit und hoch
+					// sind. Die Hälfte ist die Mitte, also bei 16. Vom Rand
+					// gehen wir also einfach 16 schritte runter und rüber und
+					// sind in der Mitte.
+					// FIXME: Setzte Mitte anhand der Bildgröße und nicht nach
+					// "Wissen"
+					zuZeichnendeSchuesse.push_back({{
+							turm.getPosition()[0] + 16, turm.getPosition()[1] + 16,
+							it->getPosition()[0] + 16, it->getPosition()[1] + 16}});
+
 					if( it->gotHit(1)){ // FIXME: setzte Schadenswert vom Turm
 						std::clog << "Versenkt!" << std::endl;
 						// jetzt ists vorbei mit Einheit e
@@ -750,6 +776,25 @@ int main(int argc, char **argv){
 			for( auto &e:aktiveEinheiten) e.draw(renderer);
 			//einheit.draw(renderer);
 			turm.draw(renderer);
+
+            // Schüsse zeichnen
+			//
+			// Da wir die aber nur ein Frame lang zeichnen, könnte es sein, dass
+			// wir davon nicht viel mitbekommen. Werden wir ja im Test sehen ;-)
+			//
+			// Die Linie sollte eine Farbe != schwarz haben. Aber vorher
+			// speichern wir die aktuelle Farbe und setzen diese anschließend
+			// auch wieder. Man kann ja nicht wissen, was andere zuvor
+			// angestellt haben...
+			Uint8 rgba[4];
+			SDL_GetRenderDrawColor(renderer, &rgba[0], &rgba[1], &rgba[2], &rgba[3]);
+			SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+			for( auto &line:zuZeichnendeSchuesse){
+				SDL_RenderDrawLine(renderer, line[0], line[1], line[2], line[3]);
+			}
+			zuZeichnendeSchuesse.clear();
+			SDL_SetRenderDrawColor(renderer, rgba[0], rgba[1], rgba[2], rgba[3]);
+
 
 			SDL_RenderPresent(renderer);
 
